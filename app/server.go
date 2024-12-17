@@ -1,11 +1,11 @@
 package main
 
 import (
-	"bytes"
 	"encoding/binary"
 	"fmt"
 	"net"
 	"os"
+	"time"
 )
 
 type Request struct {
@@ -48,37 +48,35 @@ func main() {
 func handleConnection(conn net.Conn) {
 	defer conn.Close()
 
-	buffer := make([]byte, 1024)
-	n, err := conn.Read(buffer)
-	if err != nil {
-		fmt.Println("Error reading data:", err)
-		return
-	}
+	for {
+		conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 
-	var req Request
-	if err := binary.Read(bytes.NewReader(buffer[:n]), binary.BigEndian, &req); err != nil {
-		fmt.Println("Error reading request:", err)
-		return
-	}
+		var req Request
+		if err := binary.Read(conn, binary.BigEndian, &req); err != nil {
+			fmt.Println("Error reading request:", err)
+			return
+		}
+		conn.Read(make([]byte, 1024))
 
-	resp := Response{
-		MessageSize:   19,
-		CorrelationId: req.CorrelationId,
-		ErrorCode:     0,
-		NumApiKeys:    2,
-		ApiKey:        req.ApiKey,
-		MinVersion:    0,
-		MaxVersion:    4,
-		TagByte:       0,
-		ThrottleTime:  0,
-		TagByte2:      0,
-	}
+		resp := Response{
+			MessageSize:   19,
+			CorrelationId: req.CorrelationId,
+			ErrorCode:     0,
+			NumApiKeys:    2,
+			ApiKey:        req.ApiKey,
+			MinVersion:    0,
+			MaxVersion:    4,
+			TagByte:       0,
+			ThrottleTime:  0,
+			TagByte2:      0,
+		}
 
-	if req.ApiVersion > 4 {
-		resp.ErrorCode = 35
-	}
+		if req.ApiVersion > 4 {
+			resp.ErrorCode = 35
+		}
 
-	if err := binary.Write(conn, binary.BigEndian, &resp); err != nil {
-		fmt.Println("Error sending response:", err)
+		if err := binary.Write(conn, binary.BigEndian, &resp); err != nil {
+			fmt.Println("Error sending response:", err)
+		}
 	}
 }

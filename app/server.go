@@ -18,6 +18,7 @@ type Request struct {
 type Response struct {
 	MessageSize   uint32
 	CorrelationId uint32
+	ErrorCode     uint16
 }
 
 func main() {
@@ -54,6 +55,10 @@ func handleConnection(conn net.Conn) {
 	}
 
 	resp := Response{CorrelationId: req.CorrelationId}
+	if req.ApiKey > 4 {
+		resp.ErrorCode = 35
+	}
+
 	if err := binary.Write(conn, binary.BigEndian, &resp); err != nil {
 		fmt.Println("Error sending response:", err)
 	}

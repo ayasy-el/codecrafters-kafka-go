@@ -8,45 +8,53 @@ import (
 	"os"
 )
 
+type Request struct {
+	MessageSize   uint32
+	ApiKey        uint16
+	ApiVersion    uint16
+	CorrelationId uint32
+}
+
 type Response struct {
-	MessageSize   uint32 // 4 byte
-	CorrelationId uint32 // 4 byte
+	MessageSize   uint32
+	CorrelationId uint32
 }
 
 func main() {
-	l, err := net.Listen("tcp", "0.0.0.0:9092")
+	listener, err := net.Listen("tcp", "0.0.0.0:9092")
 	if err != nil {
-		fmt.Println("Failed to bind to port 9092")
+		fmt.Println("Failed to bind to port 9092:", err)
 		os.Exit(1)
 	}
-
 	fmt.Println("Listening on port 9092")
 
 	for {
-		conn, err := l.Accept()
-		if err != nil {
-			fmt.Println("Error accepting connection: ", err.Error())
-			os.Exit(1)
+		if conn, err := listener.Accept(); err == nil {
+			go handleConnection(conn)
+		} else {
+			fmt.Println("Error accepting connection:", err)
 		}
-
-		go handleConnection(conn)
 	}
 }
 
 func handleConnection(conn net.Conn) {
 	defer conn.Close()
 
-	var response Response
-	response.CorrelationId = 7
-
-	buf := new(bytes.Buffer)
-	if err := binary.Write(buf, binary.BigEndian, response); err != nil {
-		fmt.Println("Error writing response:", err)
+	buffer := make([]byte, 1024)
+	n, err := conn.Read(buffer)
+	if err != nil {
+		fmt.Println("Error reading data:", err)
 		return
 	}
 
-	if _, err := conn.Write(buf.Bytes()); err != nil {
-		fmt.Println("Error sending response to client:", err)
+	var req Request
+	if err := binary.Read(bytes.NewReader(buffer[:n]), binary.BigEndian, &req); err != nil {
+		fmt.Println("Error reading request:", err)
 		return
+	}
+
+	resp := Response{CorrelationId: req.CorrelationId}
+	if err := binary.Write(conn, binary.BigEndian, &resp); err != nil {
+		fmt.Println("Error sending response:", err)
 	}
 }

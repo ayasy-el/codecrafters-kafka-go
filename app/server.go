@@ -19,6 +19,13 @@ type Response struct {
 	MessageSize   uint32
 	CorrelationId uint32
 	ErrorCode     uint16
+	NumApiKeys    uint8
+	ApiKey        uint16
+	MinVersion    uint16
+	MaxVersion    uint16
+	TagByte       byte
+	ThrottleTime  uint32
+	TagByte2      byte
 }
 
 func main() {
@@ -54,8 +61,20 @@ func handleConnection(conn net.Conn) {
 		return
 	}
 
-	resp := Response{CorrelationId: req.CorrelationId}
-	if req.ApiKey > 4 {
+	resp := Response{
+		MessageSize:   19,
+		CorrelationId: req.CorrelationId,
+		ErrorCode:     0,
+		NumApiKeys:    2,
+		ApiKey:        req.ApiKey,
+		MinVersion:    0,
+		MaxVersion:    4,
+		TagByte:       0,
+		ThrottleTime:  0,
+		TagByte2:      0,
+	}
+
+	if req.ApiVersion > 4 {
 		resp.ErrorCode = 35
 	}
 
